@@ -38,16 +38,18 @@ export default class AzureDevopsService implements Services.ServiceInstance {
       }
     }
 
-    const testResult: ITestResult = {
-      testCaseId: caseId,
-      result: result.passed ? 'Passed' : 'Failed',
-      message: '', // pass a substring of result.error
-    }
-
     await this._azureReporter.init()
     const runId = await this._azureReporter.getCurrentTestRunId()
 
-    await this._azureReporter.sendTestResult(testResult, runId)
+    for (let i = 0; i < caseId.length; i++) {
+      const testResult: ITestResult = {
+        testCaseId: caseId[i],
+        result: result.passed ? 'Passed' : 'Failed',
+        message: '', // pass a substring of result.error
+      }
+
+      await this._azureReporter.sendTestResult(testResult, runId)
+    }
   }
 
   async afterScenario(
@@ -91,7 +93,7 @@ export default class AzureDevopsService implements Services.ServiceInstance {
     return caseID
   }
 
-  private parseCaseIDString(title: string): string {
+  private parseCaseIDString(title: string): string[]|string {
     const caseID = 'notDefined'
     let patt = /@?[cC](\d+)/g
 
@@ -99,11 +101,16 @@ export default class AzureDevopsService implements Services.ServiceInstance {
       patt = new RegExp(this._options.caseIdRegex, 'g')
     }
 
-    const matchInfo = patt.exec(title)
-
-    if (matchInfo != null) {
-      return matchInfo[1]
+    let caseIdArray=[];
+    let match;
+    while ((match = patt.exec(title)) !== null) {
+        caseIdArray.push(match[1])
     }
+
+    if(caseIdArray.length>0){
+        return caseIdArray;
+    }
+
 
     return caseID
   }
