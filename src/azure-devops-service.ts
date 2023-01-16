@@ -45,7 +45,7 @@ export default class AzureDevopsService implements Services.ServiceInstance {
       const testResult: ITestResult = {
         testCaseId: caseId[i],
         result: result.passed ? 'Passed' : 'Failed',
-        message: '', // pass a substring of result.error
+        message: `||${test.parent} ${test.title} - ${result.error}`, // pass a substring of result.error
       }
 
       await this._azureReporter.sendTestResult(testResult, runId)
