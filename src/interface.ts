@@ -6,6 +6,7 @@ export interface IAzureConfig {
   suiteId: number
   runName: string
   caseIdRegex?: string
+  configurationName?: string
 }
 
 export interface ITestResult {
