@@ -93,7 +93,7 @@ export default class AzureDevopsService implements Services.ServiceInstance {
     return caseID
   }
 
-  private parseCaseIDString(title: string): string[]|string {
+  private parseCaseIDString(title: string): string[] | string {
     const caseID = 'notDefined'
     let patt = /@?[cC](\d+)/g
 
@@ -101,16 +101,15 @@ export default class AzureDevopsService implements Services.ServiceInstance {
       patt = new RegExp(this._options.caseIdRegex, 'g')
     }
 
-    let caseIdArray=[];
-    let match;
+    let caseIdArray = []
+    let match
     while ((match = patt.exec(title)) !== null) {
-        caseIdArray.push(match[1])
+      caseIdArray.push(match[1])
     }
 
-    if(caseIdArray.length>0){
-        return caseIdArray;
+    if (caseIdArray.length > 0) {
+      return caseIdArray
     }
-
 
     return caseID
   }
