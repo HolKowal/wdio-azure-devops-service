@@ -4,9 +4,13 @@ import { Capabilities, Frameworks, Options, Services } from '@wdio/types'
 import { PickleTag } from '@cucumber/messages'
 import { ITestCaseHookParameter } from '@cucumber/cucumber'
 import { Test, TestResult } from '@wdio/types/build/Frameworks'
+import fs from 'fs-extra'
+
+const tempTestResults = 'tempTestResults.json'
 
 export default class AzureDevopsService implements Services.ServiceInstance {
   private _azureReporter: AzureTestPlanReporter
+  public _testResults: { [testCaseId: number]: ITestResult }
 
   constructor(
     private _options: IAzureConfig,
@@ -15,15 +19,35 @@ export default class AzureDevopsService implements Services.ServiceInstance {
   ) {
     _options = Object.assign(_options, { stdout: true })
     this._azureReporter = new AzureTestPlanReporter(this._options)
+    this._testResults = {}
   }
 
   async onPrepare(): Promise<void> {
-    await this._azureReporter.init()
-    await this._azureReporter.starTestRun()
+    fs.removeSync(tempTestResults)
+    fs.outputJsonSync(tempTestResults, this._testResults)
+  }
+
+  async before(): Promise<void> {
+    this._testResults = fs.readJsonSync(tempTestResults)
   }
 
   async onComplete(): Promise<void> {
+    this._testResults = fs.readJsonSync(tempTestResults)
+
+    const testResultIds: number[] = []
+    for (const testResultId of Object.keys(this._testResults)) {
+      testResultIds.push(Number(testResultId))
+    }
+
+    await this._azureReporter.init()
+    await this._azureReporter.starTestRun(testResultIds)
+    const runId = await this._azureReporter.getCurrentTestRunId()
+    for (const testResult of Object.values(this._testResults)) {
+      await this._azureReporter.sendTestResult(testResult, runId)
+    }
     await this._azureReporter.stopTestRun()
+
+    fs.removeSync(tempTestResults)
   }
 
   async afterTest(test: Test, context: any, result: TestResult): Promise<void> {
@@ -38,18 +62,33 @@ export default class AzureDevopsService implements Services.ServiceInstance {
       }
     }
 
-    await this._azureReporter.init()
-    const runId = await this._azureReporter.getCurrentTestRunId()
-
     for (let i = 0; i < caseId.length; i++) {
-      const testResult: ITestResult = {
+      let testResult: ITestResult
+
+      const oldTestResult = this._testResults[Number(caseId[i])]
+
+      const newMessage = `||${test.parent} ${test.title} - ${result.error}`
+
+      testResult = {
         testCaseId: caseId[i],
-        result: result.passed ? 'Passed' : 'Failed',
-        message: `||${test.parent} ${test.title} - ${result.error}`, // pass a substring of result.error
+        result:
+          (oldTestResult !== undefined && oldTestResult.result == 'Failed') ||
+          !result.passed
+            ? 'Failed'
+            : 'Passed',
+        message: `${
+          oldTestResult !== undefined && oldTestResult.result == 'Failed'
+            ? oldTestResult.message
+            : ''
+        }${result.passed ? '' : newMessage}`,
       }
 
-      await this._azureReporter.sendTestResult(testResult, runId)
+      this._testResults[Number(caseId[i])] = testResult
     }
+  }
+
+  async after(): Promise<void> {
+    fs.outputJsonSync(tempTestResults, this._testResults)
   }
 
   async afterScenario(
