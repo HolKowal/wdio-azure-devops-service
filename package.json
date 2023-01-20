@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "postinstall": "husky install",
+    "postinstall": "node -e \"if (require('fs').existsSync('.git')){process.exit(1)}\" || husky install",
     "prepublishOnly": "pinst --disable",
     "postpublish": "pinst --enable",
     "build": "npm run build:cjs && npm run build:esm",
